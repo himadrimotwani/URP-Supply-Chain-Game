@@ -557,6 +557,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const negotiateForm = document.getElementById("negotiate-form");
         const orderForm = document.getElementById("order-form");
+        const startGameBtn = document.getElementById("start-game-btn");
 
         const negotiateButton = negotiateForm?.querySelector('button[type="submit"]');
         const orderButton = orderForm?.querySelector('button[type="submit"]');
