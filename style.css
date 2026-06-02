@@ -17,6 +17,11 @@ body {
   z-index: 100;
 }
 
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .tab-bar-left,
 .tab-bar-right {
   flex: 1;

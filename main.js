@@ -572,6 +572,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     orderButton.disabled = true;
                     orderButton.title = "Start a game and negotiate a contract before ordering.";
                 }
+                if (startGameBtn) {
+                    startGameBtn.disabled = false;
+                    startGameBtn.title = "";
+                }
                 break;
             case "needs_contract":
                 phaseBannerEl.textContent = "No active contract. Negotiate terms before ordering.";
@@ -583,6 +587,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     orderButton.disabled = true;
                     orderButton.title = "You must have an active contract before placing orders.";
                 }
+                if (startGameBtn) {
+                    startGameBtn.disabled = true;
+                    startGameBtn.title = "A game is already in progress.";
+                }
                 break;
             case "active_contract":
                 phaseBannerEl.textContent = "Active contract. You may place your order for this round.";
@@ -593,6 +601,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (orderButton) {
                     orderButton.disabled = false;
                     orderButton.title = "Enter Q for this round and place your order.";
+                }
+                if (startGameBtn) {
+                    startGameBtn.disabled = true;
+                    startGameBtn.title = "A game is already in progress.";
                 }
                 break;
             case "game_over":
