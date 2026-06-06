@@ -29,8 +29,7 @@ let sessionId = null;     // Current game session_id
 let currentState = null;  // Latest GameStateResponse from backend
 
 document.addEventListener("DOMContentLoaded", () => {
-    const BASE_URL = "http://3.21.165.185";
-
+    const BASE_URL = "http://localhost:8000";
 
     // ================================
     // DOM Element References
@@ -437,6 +436,11 @@ document.addEventListener("DOMContentLoaded", () => {
             return (typeof x === "number") ? x.toFixed(2) : (x ?? "?");
         }
 
+        function profitClass(val) {
+            if (typeof val !== "number") return "";
+            return val >= 0 ? "profit-positive" : "profit-negative";
+        }
+
         roundResultCardEl.innerHTML = `
             <div class="round-result-header">
                 <div class="round-result-field"><strong>Round:</strong> ${roundIndex !== null ? `Round ${roundIndex}` : "?"}</div>
@@ -452,13 +456,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 <h5>Buyer</h5>
                 <div class="round-result-field">Revenue: ${fmt(buyerRevenue)}</div>
                 <div class="round-result-field">Cost: ${fmt(buyerCost)}</div>
-                <div class="round-result-field profit"><strong>Profit:</strong> ${fmt(buyerProfit)}</div>
+                <div class="round-result-field profit ${profitClass(buyerProfit)}"><strong>Profit: ${fmt(buyerProfit)}</strong></div>
             </div>
             <div class="round-result-row">
                 <h5>Supplier</h5>
                 <div class="round-result-field">Revenue: ${fmt(supplierRevenue)}</div>
                 <div class="round-result-field">Cost: ${fmt(supplierCost)}</div>
-                <div class="round-result-field profit"><strong>Profit:</strong> ${fmt(supplierProfit)}</div>
+                <div class="round-result-field profit ${profitClass(supplierProfit)}"><strong>Profit: ${fmt(supplierProfit)}</strong></div>
             </div>
         `;
     }
@@ -566,59 +570,27 @@ document.addEventListener("DOMContentLoaded", () => {
         switch (phase) {
             case "no_game":
                 phaseBannerEl.textContent = "No game started. Use Game Setup to start a new game.";
-                if (negotiateButton) {
-                    negotiateButton.disabled = true;
-                    negotiateButton.title = "Start a game before negotiating.";
-                }
-                if (orderButton) {
-                    orderButton.disabled = true;
-                    orderButton.title = "Start a game and negotiate a contract before ordering.";
-                }
-                if (startGameBtn) {
-                    startGameBtn.disabled = false;
-                    startGameBtn.title = "";
-                }
+                if (negotiateButton) { negotiateButton.disabled = true;  negotiateButton.title = "Start a game before negotiating."; }
+                if (orderButton)     { orderButton.disabled = true;      orderButton.title = "Start a game and negotiate a contract before ordering."; }
+                if (startGameBtn)    { startGameBtn.disabled = false;    startGameBtn.title = ""; }
                 break;
             case "needs_contract":
                 phaseBannerEl.textContent = "No active contract. Negotiate terms before ordering.";
-                if (negotiateButton) {
-                    negotiateButton.disabled = false;
-                    negotiateButton.title = "Propose contract terms to the supplier.";
-                }
-                if (orderButton) {
-                    orderButton.disabled = true;
-                    orderButton.title = "You must have an active contract before placing orders.";
-                }
-                if (startGameBtn) {
-                    startGameBtn.disabled = true;
-                    startGameBtn.title = "A game is already in progress.";
-                }
+                if (negotiateButton) { negotiateButton.disabled = false; negotiateButton.title = "Propose contract terms to the supplier."; }
+                if (orderButton)     { orderButton.disabled = true;      orderButton.title = "You must have an active contract before placing orders."; }
+                if (startGameBtn)    { startGameBtn.disabled = true;     startGameBtn.title = "A game is already in progress."; }
                 break;
             case "active_contract":
                 phaseBannerEl.textContent = "Active contract. You may place your order for this round.";
-                if (negotiateButton) {
-                    negotiateButton.disabled = true;
-                    negotiateButton.title = "Contract already active. Wait until it expires to renegotiate.";
-                }
-                if (orderButton) {
-                    orderButton.disabled = false;
-                    orderButton.title = "Enter Q for this round and place your order.";
-                }
-                if (startGameBtn) {
-                    startGameBtn.disabled = true;
-                    startGameBtn.title = "A game is already in progress.";
-                }
+                if (negotiateButton) { negotiateButton.disabled = true;  negotiateButton.title = "Contract already active. Wait until it expires to renegotiate."; }
+                if (orderButton)     { orderButton.disabled = false;     orderButton.title = "Enter Q for this round and place your order."; }
+                if (startGameBtn)    { startGameBtn.disabled = true;     startGameBtn.title = "A game is already in progress."; }
                 break;
             case "game_over":
                 phaseBannerEl.textContent = "Game is over. Start a new game to play again.";
-                if (negotiateButton) {
-                    negotiateButton.disabled = true;
-                    negotiateButton.title = "Game is over. Start a new game to negotiate again.";
-                }
-                if (orderButton) {
-                    orderButton.disabled = true;
-                    orderButton.title = "Game is over. Start a new game to place orders.";
-                }
+                if (negotiateButton) { negotiateButton.disabled = true;  negotiateButton.title = "Game is over. Start a new game to negotiate again."; }
+                if (orderButton)     { orderButton.disabled = true;      orderButton.title = "Game is over. Start a new game to place orders."; }
+                if (startGameBtn)    { startGameBtn.disabled = false;    startGameBtn.title = ""; }
                 break;
             default:
                 phaseBannerEl.textContent = "";
@@ -655,18 +627,20 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        let html = '<div class="contract-summary-grid">';
-        
-        // Contract Type
-        html += `<div class="contract-field"><strong>Type:</strong> ${contract.contract_type}</div>`;
-        
-        // Pricing
+        const typeLabelMap = { buyback: "Buyback", revenue_sharing: "Revenue Sharing", hybrid: "Hybrid" };
+        const typeLabel = typeLabelMap[contract.contract_type] || contract.contract_type;
+        const totalRounds = contract.length || 1;
+        const usedRounds = totalRounds - remaining;
+        const progressPct = Math.round((usedRounds / totalRounds) * 100);
+
+        let html = `<span class="contract-badge">${typeLabel}</span>`;
+        html += '<div class="contract-summary-grid">';
         html += `<div class="contract-field"><strong>Wholesale (w):</strong> ${contract.wholesale_price}</div>`;
         
         if (contract.contract_type === "buyback" || contract.contract_type === "hybrid") {
             html += `<div class="contract-field"><strong>Buyback (b):</strong> ${contract.buyback_price}</div>`;
             if (contract.cap_type === "fraction") {
-                html += `<div class="contract-field"><strong>Return cap:</strong> φ = ${contract.cap_value} (fraction of Q)</div>`;
+                html += `<div class="contract-field"><strong>Return cap:</strong> φ = ${contract.cap_value}</div>`;
             } else if (contract.cap_type === "unit") {
                 html += `<div class="contract-field"><strong>Return cap:</strong> B_max = ${contract.cap_value} units</div>`;
             }
@@ -676,11 +650,17 @@ document.addEventListener("DOMContentLoaded", () => {
             html += `<div class="contract-field"><strong>Revenue share:</strong> ${contract.revenue_share}</div>`;
         }
         
-        // Contract Duration
-        html += `<div class="contract-field"><strong>Length (L):</strong> ${contract.length} rounds</div>`;
-        html += `<div class="contract-field"><strong>Remaining rounds:</strong> ${remaining}</div>`;
-        
+        html += `<div class="contract-field"><strong>Length:</strong> ${contract.length} rounds</div>`;
+        html += `<div class="contract-field"><strong>Remaining:</strong> ${remaining} round${remaining !== 1 ? "s" : ""}</div>`;
         html += '</div>';
+        html += `
+            <div class="contract-progress">
+                <div class="contract-progress-label">${usedRounds} of ${totalRounds} rounds used</div>
+                <div class="contract-progress-bar">
+                    <div class="contract-progress-fill" style="width: ${progressPct}%"></div>
+                </div>
+            </div>
+        `;
         
         contractSummaryEl.innerHTML = html;
     }
@@ -1094,6 +1074,7 @@ document.addEventListener("DOMContentLoaded", () => {
         html += `</div>`;
         
         details.innerHTML = html;
+        section.classList.remove("hidden-section");
         section.style.display = "block";
         updateSectionVisibility();
     }
@@ -1103,7 +1084,10 @@ document.addEventListener("DOMContentLoaded", () => {
      */
     function hideCounterofferSection() {
         const section = document.getElementById("counteroffer-section");
-        if (section) section.style.display = "none";
+        if (section) {
+            section.style.display = "none";
+            section.classList.add("hidden-section");
+        }
     }
     
     /**
@@ -1111,7 +1095,10 @@ document.addEventListener("DOMContentLoaded", () => {
      */
     function showChatSection() {
         const section = document.getElementById("negotiation-chat-section");
-        if (section) section.style.display = "block";
+        if (section) {
+            section.classList.remove("hidden-section");
+            section.style.display = "block";
+        }
         updateSectionVisibility();
     }
     
@@ -1120,7 +1107,10 @@ document.addEventListener("DOMContentLoaded", () => {
      */
     function hideChatSection() {
         const section = document.getElementById("negotiation-chat-section");
-        if (section) section.style.display = "none";
+        if (section) {
+            section.style.display = "none";
+            section.classList.add("hidden-section");
+        }
         updateSectionVisibility();
     }
     
@@ -1139,23 +1129,34 @@ document.addEventListener("DOMContentLoaded", () => {
     function addChatMessage(role, content) {
         const chatMessages = document.getElementById("chat-messages");
         if (!chatMessages) return;
-        
-        const messageDiv = document.createElement("div");
-        messageDiv.style.marginBottom = "0.5rem";
-        messageDiv.style.padding = "0.5rem";
-        messageDiv.style.borderRadius = "4px";
-        messageDiv.style.backgroundColor = role === "student" ? "#e3f2fd" : "#f5f5f5";
-        messageDiv.style.textAlign = role === "student" ? "right" : "left";
-        
-        const roleLabel = document.createElement("strong");
-        roleLabel.textContent = role === "student" ? "You: " : "Supplier: ";
-        messageDiv.appendChild(roleLabel);
-        
-        const contentSpan = document.createElement("span");
-        contentSpan.textContent = content;
-        messageDiv.appendChild(contentSpan);
-        
-        chatMessages.appendChild(messageDiv);
+
+        const isUser = role === "student";
+
+        // Outer wrap controls left/right alignment
+        const wrap = document.createElement("div");
+        wrap.className = `chat-bubble-wrap ${isUser ? "user" : "supplier"}`;
+
+        // Sender label
+        const label = document.createElement("div");
+        label.className = "bubble-label";
+        label.textContent = isUser ? "You" : "Supplier AI";
+        wrap.appendChild(label);
+
+        // Bubble
+        const bubble = document.createElement("div");
+        bubble.className = "chat-bubble";
+        bubble.textContent = content;
+        wrap.appendChild(bubble);
+
+        // Timestamp
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        const time = document.createElement("div");
+        time.className = "bubble-time";
+        time.textContent = timeStr;
+        wrap.appendChild(time);
+
+        chatMessages.appendChild(wrap);
         chatMessages.scrollTop = chatMessages.scrollHeight;
     }
     
@@ -1301,12 +1302,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 submittedSection.classList.remove("hidden-section");
             }
 
-            // 🔥 FORCE CHAT TO SHOW AFTER SUBMISSION (ADD HERE)
-            const chatSection = document.getElementById("negotiation-chat-section");
-            if (chatSection) {
-                chatSection.style.display = "block";
-                chatSection.classList.remove("hidden-section");
-            }
+            showChatSection();
             try {
                 const data = await fetchJsonWithDetail(`${BASE_URL}/game/negotiate`, {
                     method: "POST",
@@ -1674,6 +1670,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (type === "buyback") option.selected = true;
             contractTypeSelect.appendChild(option);
         });
+
+        contractTypeSelect.dispatchEvent(new Event("change"));
     }
 
     /**
@@ -1858,6 +1856,107 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ================================
+    // Loading Button Helpers
+    // ================================
+
+    /**
+     * Sets a button into a loading state (spinner, disabled).
+     * Returns a restore function to call when done.
+     */
+    function setButtonLoading(btn, loadingText) {
+        if (!btn) return () => {};
+        const originalText = btn.textContent;
+        const originalDisabled = btn.disabled;
+        btn.textContent = loadingText || "Loading…";
+        btn.classList.add("loading");
+        btn.disabled = true;
+        return () => {
+            btn.textContent = originalText;
+            btn.classList.remove("loading");
+            btn.disabled = originalDisabled;
+        };
+    }
+
+    // ================================
+    // Conditional Negotiation Fields
+    // ================================
+
+    /**
+     * Shows/hides negotiation form fields based on selected contract type.
+     */
+    function initConditionalNegotiationFields() {
+        const contractTypeSelect = document.getElementById("contract-type-input");
+        if (!contractTypeSelect) return;
+
+        function updateFields() {
+            const val = contractTypeSelect.value;
+            // Fields tagged with neg-field-buyback, neg-field-revenue_sharing, neg-field-hybrid
+            document.querySelectorAll(".form-field[class*='neg-field-']").forEach(el => {
+                const classes = Array.from(el.classList);
+                const relevant = classes.some(c => c === `neg-field-${val}`);
+                el.style.display = relevant ? "" : "none";
+            });
+        }
+
+        contractTypeSelect.addEventListener("change", updateFields);
+        updateFields(); // Run on load
+    }
+
+    // ================================
+    // Loading Indicator Wrappers
+    // ================================
+
+    /**
+     * Wraps async button handlers with loading state.
+     * Call after all sections are initialized.
+     */
+    function initLoadingIndicators() {
+        // Start game button
+        const startGameBtn = document.getElementById("start-game-btn");
+        if (startGameBtn) {
+            const original = startGameBtn.onclick;
+            // We patch via event listener override — handled via click event already in initGameControlSection
+            // Instead wrap by monkey-patching the click handler
+        }
+
+        // Helper: wrap a button's existing click listeners with loading state
+        function wrapButtonWithLoading(btnId, loadingLabel) {
+            const btn = document.getElementById(btnId);
+            if (!btn) return;
+            btn.addEventListener("click", function() {
+                // The actual async work starts after this event; mark loading
+                // We rely on the existing handlers to do the work
+                // Just add the class — it'll be removed when state re-renders
+                btn.classList.add("loading");
+                setTimeout(() => btn.classList.remove("loading"), 8000); // safety fallback
+            }, true); // capture phase so it fires first
+        }
+
+        wrapButtonWithLoading("start-game-btn", "Starting…");
+        wrapButtonWithLoading("end-game-early-btn", "Ending…");
+        wrapButtonWithLoading("health_button", "Checking…");
+        wrapButtonWithLoading("ai-status-button", "Checking…");
+        wrapButtonWithLoading("load-config-btn", "Loading…");
+        wrapButtonWithLoading("load-negotiation-config-btn", "Loading…");
+        wrapButtonWithLoading("save-history-btn", "Saving…");
+        wrapButtonWithLoading("accept-counter-btn", "Accepting…");
+        wrapButtonWithLoading("reject-counter-btn", "Rejecting…");
+
+        // Form submit buttons
+        ["negotiate-form", "chat-form", "order-form", "update-econ-form", "update-negotiation-config-form"].forEach(formId => {
+            const form = document.getElementById(formId);
+            if (!form) return;
+            form.addEventListener("submit", () => {
+                const btn = form.querySelector("button[type='submit']");
+                if (btn) {
+                    btn.classList.add("loading");
+                    setTimeout(() => btn.classList.remove("loading"), 8000);
+                }
+            }, true);
+        });
+    }
+
+    // ================================
     // Initialization on Page Load
     // ================================
     
@@ -1876,4 +1975,8 @@ document.addEventListener("DOMContentLoaded", () => {
     initConfigSection();
     initNegotiationConfigSection();
     loadNegotiationConfigOnStartup();
+
+    // Additional UX enhancements
+    initConditionalNegotiationFields();
+    initLoadingIndicators();
 });
