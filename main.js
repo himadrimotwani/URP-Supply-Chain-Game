@@ -2063,7 +2063,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (statusEl) {
                 statusEl.textContent = "Download failed: " + err.message;
             }
-            addNotification("Download failed: " + err.message, "error");
+            addNotification(`Download failed: ${err.message} (${url})`, "error");
         }
     }
 
