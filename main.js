@@ -2020,8 +2020,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    async function downloadFile(url) {
+    async function downloadFile(url, statusEl = null) {
         try {
+            if (statusEl) {
+                statusEl.textContent = "Preparing download...";
+            }
+
             const response = await fetch(url);
             if (!response.ok) {
                 let message = `HTTP ${response.status}: ${response.statusText}`;
@@ -2048,9 +2052,17 @@ document.addEventListener("DOMContentLoaded", () => {
             document.body.appendChild(link);
             link.click();
             link.remove();
-            URL.revokeObjectURL(objectUrl);
+            window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+
+            if (statusEl) {
+                statusEl.textContent = `Downloaded ${filename}.`;
+            }
+            addNotification(`Downloaded ${filename}.`, "success");
         } catch (err) {
             console.error(err);
+            if (statusEl) {
+                statusEl.textContent = "Download failed: " + err.message;
+            }
             addNotification("Download failed: " + err.message, "error");
         }
     }
@@ -2149,7 +2161,7 @@ document.addEventListener("DOMContentLoaded", () => {
             downloadParticipantsBtn.addEventListener("click", () => {
                 const code = requireRecordsAccessCode();
                 if (!code) return;
-                downloadFile(`${BASE_URL}/records/participants.csv?code=${encodeURIComponent(code)}`);
+                downloadFile(`${BASE_URL}/records/participants.csv?code=${encodeURIComponent(code)}`, recordsSummary);
             });
         }
 
@@ -2157,7 +2169,7 @@ document.addEventListener("DOMContentLoaded", () => {
             downloadRoundsBtn.addEventListener("click", () => {
                 const code = requireRecordsAccessCode();
                 if (!code) return;
-                downloadFile(`${BASE_URL}/records/rounds.csv?code=${encodeURIComponent(code)}`);
+                downloadFile(`${BASE_URL}/records/rounds.csv?code=${encodeURIComponent(code)}`, recordsSummary);
             });
         }
 
@@ -2165,7 +2177,7 @@ document.addEventListener("DOMContentLoaded", () => {
             downloadChatLogsBtn.addEventListener("click", () => {
                 const code = requireRecordsAccessCode();
                 if (!code) return;
-                downloadFile(`${BASE_URL}/records/chat-logs.csv?code=${encodeURIComponent(code)}`);
+                downloadFile(`${BASE_URL}/records/chat-logs.csv?code=${encodeURIComponent(code)}`, recordsSummary);
             });
         }
     }
