@@ -2020,12 +2020,39 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    function downloadFile(url) {
-        const link = document.createElement("a");
-        link.href = url;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+    async function downloadFile(url) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                let message = `HTTP ${response.status}: ${response.statusText}`;
+                try {
+                    const data = await response.json();
+                    if (data.detail) {
+                        message = `HTTP ${response.status}: ${data.detail}`;
+                    }
+                } catch (_) {
+                    // Keep the default HTTP message when the response is not JSON.
+                }
+                throw new Error(message);
+            }
+
+            const blob = await response.blob();
+            const disposition = response.headers.get("Content-Disposition") || "";
+            const filenameMatch = disposition.match(/filename="?([^"]+)"?/i);
+            const filename = filenameMatch ? filenameMatch[1] : "records.csv";
+
+            const objectUrl = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = objectUrl;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(objectUrl);
+        } catch (err) {
+            console.error(err);
+            addNotification("Download failed: " + err.message, "error");
+        }
     }
 
     function renderRecordsTable(containerId, rows, columns) {
